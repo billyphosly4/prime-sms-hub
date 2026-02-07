@@ -16,29 +16,7 @@ console.error = function(...args) {
 };
 
 // Load Firebase SDKs and initialize safely
-(function(){
-    const libs = [
-        'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js',
-        'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js',
-        'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js',
-        'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js'
-    ];
-    libs.forEach(src => {
-        if (!document.querySelector(`script[src="${src}"]`)) {
-            const s = document.createElement('script'); s.src = src; document.head.appendChild(s);
-        }
-    });
-    const check = setInterval(() => {
-        if (window.firebase && firebase.auth) {
-            clearInterval(check);
-            if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-            window.auth = firebase.auth();
-            window.db = firebase.firestore();
-            window.storage = firebase.storage();
-        }
-    }, 100);
-})();
-
+// Firebase project configuration (kept in repo for dev; override in production)
 const firebaseConfig = {
   apiKey: "AIzaSyDoJYqyAwFbG0ZKuEQzJSlwucQjQwTmmMo",
   authDomain: "primesmshub-24c8b.firebaseapp.com",
@@ -48,6 +26,34 @@ const firebaseConfig = {
   appId: "1:546449049036:web:4663a2846e0da751d24969"
 };
 
+// Load Firebase SDKs and initialize safely
+(function(){
+    // Use the compatibility (-compat) builds so existing v8-style calls (firebase.auth(), firestore(), etc.) work.
+    const libs = [
+        'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js',
+        'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js',
+        'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js',
+        'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js'
+    ];
+    libs.forEach(src => {
+        if (!document.querySelector(`script[src="${src}"]`)) {
+            const s = document.createElement('script'); s.src = src; document.head.appendChild(s);
+        }
+    });
+    const check = setInterval(() => {
+        if (window.firebase && firebase.auth) {
+            clearInterval(check);
+            try {
+                if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+            } catch (e) {
+                console.error('Firebase init error', e);
+            }
+            window.auth = firebase.auth();
+            window.db = firebase.firestore();
+            window.storage = firebase.storage();
+        }
+    }, 100);
+})();
 // Initialize (will also be done by loader above); expose lazy vars
 const auth = window.auth || (window.firebase && firebase.auth && firebase.auth());
 const db = window.db || (window.firebase && firebase.firestore && firebase.firestore());
@@ -68,7 +74,7 @@ function getStorage(){
     if (typeof storage !== 'undefined' && storage) return storage;
     if (window.firebase && firebase.storage) return firebase.storage();
     throw new Error('Firebase Storage not initialized');
-
+}
 // Async initializers that wait for Firebase to be ready
 // Configurable init timeout (ms). Override by setting window.FIREBASE_INIT_TIMEOUT_MS
 window.FIREBASE_INIT_TIMEOUT_MS = window.FIREBASE_INIT_TIMEOUT_MS || 8000;
@@ -119,8 +125,8 @@ function getDBAsync(timeout = window.FIREBASE_INIT_TIMEOUT_MS, signal) {
         })();
     });
 }
-} 
 
+ 
 // ========================================
 // FIRESTORE COLLECTIONS STRUCTURE
 // ========================================

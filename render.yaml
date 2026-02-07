@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: prime-sms-hub-web
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash start.sh
+    plan: free
+  - type: worker
+    name: prime-sms-hub-worker
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python backend/manage.py runworker
+    plan: free

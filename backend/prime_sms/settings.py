@@ -40,6 +40,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -127,6 +128,9 @@ STATICFILES_DIRS = [
     # Include repo root so top-level asset folders (js, css, images) and index.html are served
     os.path.join(BASE_DIR, '..'),
 ]
+
+# Use WhiteNoise to serve static files in production when DEBUG=False
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media files
 MEDIA_URL = '/media/'
