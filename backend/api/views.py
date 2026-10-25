@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
 import logging
+from decimal import Decimal, InvalidOperation
 from django.db.models import Q
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import permission_classes
@@ -484,25 +485,33 @@ class WalletViewSet(viewsets.ViewSet):
         """Upload proof of manual bank transfer and create pending transaction for verification
         Note: User should transfer (amount + 5 naira service charge), but only 'amount' is credited to wallet
         """
-        SERVICE_CHARGE = 5.0  # 5 naira service charge
-        wallet_amount = float(request.data.get('amount', 0))  # Amount to credit to wallet
+        SERVICE_CHARGE = Decimal('5.00')
+        try:
+            wallet_amount = Decimal(str(request.data.get('amount', '')))
+        except (InvalidOperation, TypeError, ValueError):
+            return Response({'error': 'Invalid amount. Minimum is ₦1'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if (
+            not wallet_amount.is_finite()
+            or wallet_amount < Decimal('1.00')
+            or wallet_amount.as_tuple().exponent < -2
+            or wallet_amount >= Decimal('100000000')
+        ):
+            return Response({'error': 'Invalid amount. Minimum is ₦1'}, status=status.HTTP_400_BAD_REQUEST)
+
         total_transferred = wallet_amount + SERVICE_CHARGE  # Total amount user should have transferred
         
         proof_file = request.FILES.get('proof')
-        reference = request.data.get('reference', '').strip()
+        reference = request.data.get('reference') or ''
+        if not isinstance(reference, str):
+            return Response({'error': 'Transaction reference must be a string'}, status=status.HTTP_400_BAD_REQUEST)
+        reference = reference.strip()
 
         # Basic validation
-        if wallet_amount <= 0:
-            return Response({'error': 'Invalid amount. Minimum is ₦1'}, status=status.HTTP_400_BAD_REQUEST)
         if not proof_file:
             return Response({'error': 'Proof file is required'}, status=status.HTTP_400_BAD_REQUEST)
         if not reference:
             return Response({'error': 'Transaction reference is required'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Generate a reference if not provided
-        import uuid
-        if not reference:
-            reference = f'PROOF-{uuid.uuid4().hex[:10].upper()}'
 
         tx = Transaction.objects.create(
             user=request.user,
@@ -518,9 +527,9 @@ class WalletViewSet(viewsets.ViewSet):
         return Response({
             'message': f'Proof uploaded. Please ensure you transferred ₦{total_transferred:.2f} (₦{wallet_amount:.2f} + ₦{SERVICE_CHARGE:.2f} service charge). Only ₦{wallet_amount:.2f} will be credited to your wallet.',
             'transaction': TransactionSerializer(tx).data,
-            'wallet_amount': wallet_amount,
-            'service_charge': SERVICE_CHARGE,
-            'total_transferred': total_transferred
+            'wallet_amount': float(wallet_amount),
+            'service_charge': float(SERVICE_CHARGE),
+            'total_transferred': float(total_transferred)
         })
 
 

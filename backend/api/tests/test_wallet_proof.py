@@ -22,6 +22,20 @@ class WalletProofUploadTests(TestCase):
         self.assertEqual(tx.verification_status, 'pending')
         self.assertEqual(tx.status, 'pending')
 
+    def test_upload_proof_rejects_invalid_amounts_without_creating_transactions(self):
+        for amount in ('not-a-number', 'NaN', 'Infinity', '0', '0.01', '0.99', '-1', '1.001', '100000000'):
+            with self.subTest(amount=amount):
+                proof = SimpleUploadedFile('proof.jpg', b'filedata', content_type='image/jpeg')
+                resp = self.client.post('/api/wallet/upload_proof/', {
+                    'amount': amount,
+                    'proof': proof,
+                    'reference': f'INVALID-{amount}',
+                })
+                self.assertEqual(resp.status_code, 400)
+                self.assertIn('error', resp.json())
+
+        self.assertEqual(Transaction.objects.count(), 0)
+
     def test_approving_transaction_credits_wallet(self):
         # upload proof
         f = SimpleUploadedFile('proof.pdf', b'pdfdata', content_type='application/pdf')
